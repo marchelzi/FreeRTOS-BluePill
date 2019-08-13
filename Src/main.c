@@ -34,6 +34,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TXSTARTMESSAGESIZE 				(COUNTOF(StartMessagge) - 1)
+#define COUNTOF(__BUFFER__)   (sizeof(__BUFFER__) / sizeof(*(__BUFFER__)))
 
 /* USER CODE END PD */
 
@@ -49,6 +51,8 @@ osThreadId Task1Handle;
 osThreadId task2Handle;
 osTimerId myTimer01Handle;
 /* USER CODE BEGIN PV */
+int TimerFlag = 1;
+uint8_t StartMessagge[] = "\r\n Uart Ready: \r\n ";
 
 /* USER CODE END PV */
 
@@ -130,7 +134,7 @@ int main(void)
   Task1Handle = osThreadCreate(osThread(Task1), NULL);
 
   /* definition and creation of task2 */
-  osThreadDef(task2, task2EntryFunction, osPriorityIdle, 0, 128);
+  osThreadDef(task2, task2EntryFunction, osPriorityNormal, 0, 128);
   task2Handle = osThreadCreate(osThread(task2), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -264,7 +268,7 @@ void task1EntryFunction(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+   HAL_UART_Transmit(&huart1, StartMessagge, TXSTARTMESSAGESIZE,10);
   }
   /* USER CODE END 5 */ 
 }
@@ -282,7 +286,15 @@ void task2EntryFunction(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	if (TimerFlag == 1)
+	{
+		TimerFlag = 0;
+		HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_13);
+		osTimerStart(myTimer01Handle, 1000);
+		HAL_UART_Transmit(&huart1, StartMessagge, TXSTARTMESSAGESIZE,10);
+	}
+
+
   }
   /* USER CODE END task2EntryFunction */
 }
@@ -291,10 +303,13 @@ void task2EntryFunction(void const * argument)
 void Callback01(void const * argument)
 {
   /* USER CODE BEGIN Callback01 */
-  timerFlag - 1;
+  TimerFlag = 1;
   /* USER CODE END Callback01 */
 }
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
+{
+	HAL_UART_Transmit_IT(&huart1, StartMessagge, TXSTARTMESSAGESIZE);
+}
 /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM2 interrupt took place, inside
